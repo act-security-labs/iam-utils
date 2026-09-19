@@ -1,3 +1,10 @@
+## [0.1.84](https://github.com/act-security-labs/iam-utils/compare/v0.1.83...v0.1.84) (2026-09-19)
+
+
+### Bug Fixes
+
+* use updated dependency updater action ([f59dad4](https://github.com/act-security-labs/iam-utils/commit/f59dad4880d55b0806bd478c5dc969f4b8759d8f))
+
 ## [0.1.83](https://github.com/act-security-labs/iam-utils/compare/v0.1.82...v0.1.83) (2026-09-01)
 
 ## [0.1.82](https://github.com/cloud-copilot/iam-utils/compare/v0.1.81...v0.1.82) (2026-08-29)
