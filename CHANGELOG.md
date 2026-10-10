@@ -1,3 +1,5 @@
+## [0.1.88](https://github.com/act-security-labs/iam-utils/compare/v0.1.87...v0.1.88) (2026-10-10)
+
 ## [0.1.87](https://github.com/act-security-labs/iam-utils/compare/v0.1.86...v0.1.87) (2026-10-03)
 
 ## [0.1.86](https://github.com/act-security-labs/iam-utils/compare/v0.1.85...v0.1.86) (2026-09-26)
