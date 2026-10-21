@@ -1,3 +1,10 @@
+## [0.1.90](https://github.com/act-security-labs/iam-utils/compare/v0.1.89...v0.1.90) (2026-10-21)
+
+
+### Features
+
+* add string utilities and root ARN predicate ([b22f25e](https://github.com/act-security-labs/iam-utils/commit/b22f25ecaaec074605591a208c48500f7e753997))
+
 ## [0.1.89](https://github.com/act-security-labs/iam-utils/compare/v0.1.88...v0.1.89) (2026-10-17)
 
 ## [0.1.88](https://github.com/act-security-labs/iam-utils/compare/v0.1.87...v0.1.88) (2026-10-10)
