@@ -8,6 +8,7 @@ export {
   isFederatedUserArn,
   isIamRoleArn,
   isIamUserArn,
+  isRootArn,
   isServicePrincipal
 } from './principals.js'
 export { convertResourcePatternToRegex } from './resourcePatterns.js'
@@ -21,3 +22,4 @@ export {
   isAwsResourceInfoExcludedAction
 } from './resourceInfoContextKeys.js'
 export { bucketArn, isS3BucketOrObjectArn } from './s3.js'
+export { equalsIgnoreCase, splitSlice } from './strings.js'

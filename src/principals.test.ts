@@ -6,6 +6,7 @@ import {
   isFederatedUserArn,
   isIamRoleArn,
   isIamUserArn,
+  isRootArn,
   isServicePrincipal
 } from './principals.js'
 
@@ -216,6 +217,85 @@ describe('isFederatedUserArn', () => {
       //Then it should return true
       expect(result).toBe(true)
     })
+
+    const iamRoleArnContractTests = [
+      {
+        name: 'a hyphen-only partition',
+        principal: 'arn:---:iam::123456789012:role/role-name',
+        expected: true
+      },
+      {
+        name: 'an empty role suffix',
+        principal: 'arn:aws:iam::123456789012:role/',
+        expected: true
+      },
+      {
+        name: 'a role suffix containing colons',
+        principal: 'arn:aws:iam::123456789012:role/role:name',
+        expected: true
+      },
+      {
+        name: 'an uppercase ARN prefix',
+        principal: 'ARN:aws:iam::123456789012:role/role-name',
+        expected: false
+      },
+      {
+        name: 'an uppercase IAM service',
+        principal: 'arn:aws:IAM::123456789012:role/role-name',
+        expected: false
+      },
+      {
+        name: 'an empty partition',
+        principal: 'arn::iam::123456789012:role/role-name',
+        expected: false
+      },
+      {
+        name: 'a partition containing a digit',
+        principal: 'arn:aws2:iam::123456789012:role/role-name',
+        expected: false
+      },
+      {
+        name: 'a partition containing an underscore',
+        principal: 'arn:aws_partition:iam::123456789012:role/role-name',
+        expected: false
+      },
+      {
+        name: 'a short account ID',
+        principal: 'arn:aws:iam::12345678901:role/role-name',
+        expected: false
+      },
+      {
+        name: 'a newline in the role suffix',
+        principal: 'arn:aws:iam::123456789012:role/role\nname',
+        expected: false
+      },
+      {
+        name: 'a carriage return in the role suffix',
+        principal: 'arn:aws:iam::123456789012:role/role\rname',
+        expected: false
+      },
+      {
+        name: 'a line separator in the role suffix',
+        principal: 'arn:aws:iam::123456789012:role/role\u2028name',
+        expected: false
+      },
+      {
+        name: 'a paragraph separator in the role suffix',
+        principal: 'arn:aws:iam::123456789012:role/role\u2029name',
+        expected: false
+      }
+    ]
+
+    for (const { name, principal, expected } of iamRoleArnContractTests) {
+      it(`should return ${expected} for ${name}`, () => {
+        //Given a possible IAM role ARN
+        //When checking whether it is an IAM role ARN
+        const result = isIamRoleArn(principal)
+
+        //Then it should match the legacy regex behavior
+        expect(result).toBe(expected)
+      })
+    }
   })
 })
 
@@ -241,6 +321,87 @@ describe('isArnPrincipal', () => {
     //Then it should return false
     expect(result).toBe(false)
   })
+})
+
+describe('isRootArn', () => {
+  const rootArnTests = [
+    {
+      name: 'an AWS partition root ARN',
+      principal: 'arn:aws:iam::123456789012:root',
+      expected: true
+    },
+    {
+      name: 'a GovCloud partition root ARN',
+      principal: 'arn:aws-us-gov:iam::123456789012:root',
+      expected: true
+    },
+    {
+      name: 'a China partition root ARN',
+      principal: 'arn:aws-cn:iam::123456789012:root',
+      expected: true
+    },
+    {
+      name: 'case-insensitive ARN, service, and resource segments',
+      principal: 'ARN:custom-partition:IAM::123456789012:ROOT',
+      expected: true
+    },
+    { name: 'an empty partition', principal: 'arn::iam::123456789012:root', expected: true },
+    {
+      name: 'a partition containing digits',
+      principal: 'arn:aws2:iam::123456789012:root',
+      expected: true
+    },
+    {
+      name: 'a partition containing Unicode characters',
+      principal: 'arn:àws:iam::123456789012:root',
+      expected: true
+    },
+    { name: 'an empty input', principal: '', expected: false },
+    {
+      name: 'a non-empty region',
+      principal: 'arn:aws:iam:us-east-1:123456789012:root',
+      expected: false
+    },
+    { name: 'a short account ID', principal: 'arn:aws:iam::12345678901:root', expected: false },
+    { name: 'a long account ID', principal: 'arn:aws:iam::1234567890123:root', expected: false },
+    {
+      name: 'a non-numeric account ID',
+      principal: 'arn:aws:iam::account-id12:root',
+      expected: false
+    },
+    {
+      name: 'an account ID with non-ASCII digits',
+      principal: 'arn:aws:iam::١٢٣٤٥٦٧٨٩٠١٢:root',
+      expected: false
+    },
+    { name: 'a different service', principal: 'arn:aws:sts::123456789012:root', expected: false },
+    {
+      name: 'a different resource',
+      principal: 'arn:aws:iam::123456789012:user/root',
+      expected: false
+    },
+    {
+      name: 'a resource with extra colon-separated values',
+      principal: 'arn:aws:iam::123456789012:root:extra',
+      expected: false
+    },
+    {
+      name: 'a trailing newline',
+      principal: 'arn:aws:iam::123456789012:root\n',
+      expected: false
+    }
+  ]
+
+  for (const { name, principal, expected } of rootArnTests) {
+    it(`should return ${expected} for ${name}`, () => {
+      //Given a possible root ARN
+      //When checking whether it is a root ARN
+      const result = isRootArn(principal)
+
+      //Then it should match the expected result
+      expect(result).toBe(expected)
+    })
+  }
 })
 
 describe('isServicePrincipal', () => {

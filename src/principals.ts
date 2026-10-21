@@ -50,12 +50,24 @@ export function isIamUserArn(principal: string): boolean {
 }
 
 const iamRoleArnRegex = /^arn:[a-zA-Z\-]+:iam::\d{12}:role\/.*$/
+const rootArnRegex = /^arn:[^:]*:iam::\d{12}:root$/i
 
 /**
- * Test if a principal string is an IAM Role ARN
+ * Tests whether a string is an IAM account root ARN. The `arn`, `iam`, and `root` segments are
+ * matched case-insensitively; the partition segment is deliberately not validated.
  *
- * @param principal the principal string to test
- * @returns true if the principal is an IAM role ARN, false otherwise
+ * @param principal The string to test.
+ * @returns Whether the string is a root ARN with an empty region and a 12-digit account ID.
+ */
+export function isRootArn(principal: string): boolean {
+  return rootArnRegex.test(principal)
+}
+
+/**
+ * Tests whether a principal string is an IAM role ARN.
+ *
+ * @param principal The principal string to test.
+ * @returns Whether the principal is an IAM role ARN.
  */
 export function isIamRoleArn(principal: string): boolean {
   return iamRoleArnRegex.test(principal)
