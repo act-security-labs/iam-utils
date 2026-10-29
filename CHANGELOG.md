@@ -1,3 +1,10 @@
+## [0.1.92](https://github.com/act-security-labs/iam-utils/compare/v0.1.91...v0.1.92) (2026-10-29)
+
+
+### Features
+
+* standardize case-insensitive string comparisons ([68c3ed5](https://github.com/act-security-labs/iam-utils/commit/68c3ed571f5dbc3292dd1647cd356fb0fb7ac9c0))
+
 ## [0.1.91](https://github.com/act-security-labs/iam-utils/compare/v0.1.90...v0.1.91) (2026-10-24)
 
 ## [0.1.90](https://github.com/act-security-labs/iam-utils/compare/v0.1.89...v0.1.90) (2026-10-21)
