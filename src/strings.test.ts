@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
-import { equalsIgnoreCase, splitSlice } from './strings.js'
+import { equalsIgnoreCase, normalizeCaseInsensitive, splitSlice } from './strings.js'
+import { unicodeCaseMapping } from './unicodeCaseMapping.js'
 
 describe('equalsIgnoreCase', () => {
   it('should match strings with different casing', () => {
@@ -26,15 +27,56 @@ describe('equalsIgnoreCase', () => {
     expect(result).toBe(false)
   })
 
-  it('should use English case-insensitive collation', () => {
-    //Given ASCII and Turkish dotted-I comparisons
-    const asciiCaseVariantsMatch = equalsIgnoreCase('I', 'i')
-    const dottedTurkishIIsDistinct = equalsIgnoreCase('İ', 'i')
+  it.each([
+    ['I', 'ı', true],
+    ['i', 'İ', true],
+    ['σ', 'ς', true],
+    ['𐐀x', '𐐨X', true],
+    ['ß', 'ẞ', true],
+    ['ß', 'ss', false],
+    ['a', 'ａ', false],
+    ['é', 'e\u0301', false],
+    ['ab', 'a\u0000b', false],
+    ['a\ud800', 'A\ud800', true],
+    ['a\udc00', 'A\udc00', true],
+    ['a', 'ab', false],
+    ['', '', true]
+  ])('compares %j and %j according to the pinned mapping', (first, second, expected) => {
+    //Given two strings with a known case relationship
+    //When comparing and normalizing both strings
+    const result = equalsIgnoreCase(first, second)
+    const normalizedMatch = normalizeCaseInsensitive(first) === normalizeCaseInsensitive(second)
 
-    //When evaluating the comparison results
-    //Then English case variants should match and dotted Turkish I should remain distinct
-    expect(asciiCaseVariantsMatch).toBe(true)
-    expect(dottedTurkishIIsDistinct).toBe(false)
+    //Then both operations agree with the expected result in both directions
+    expect(result).toBe(expected)
+    expect(equalsIgnoreCase(second, first)).toBe(expected)
+    expect(normalizedMatch).toBe(expected)
+  })
+
+  it('produces a deterministic normalized map key', () => {
+    //Given a key with ASCII, Turkish I and supplementary-plane characters
+    const key = 'AWS:ResourceTag/İ𐐀'
+
+    //When normalizing the key
+    const normalized = normalizeCaseInsensitive(key)
+
+    //Then each character uses the pinned case representative
+    expect(normalized).toBe('aws:resourcetag/i𐐨')
+  })
+
+  it('normalizes each generated mapping idempotently', () => {
+    //Given every code point in the generated mapping
+    //When normalizing each source and target
+    for (const [source, target] of unicodeCaseMapping) {
+      const input = String.fromCodePoint(source)
+      const expected = String.fromCodePoint(target)
+
+      //Then equality and normalization share an idempotent representative
+      expect(input.length).toBe(expected.length)
+      expect(normalizeCaseInsensitive(input)).toBe(expected)
+      expect(normalizeCaseInsensitive(expected)).toBe(expected)
+      expect(equalsIgnoreCase(input, expected)).toBe(true)
+    }
   })
 
   it('should return false for different strings', () => {

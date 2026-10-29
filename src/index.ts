@@ -22,4 +22,4 @@ export {
   isAwsResourceInfoExcludedAction
 } from './resourceInfoContextKeys.js'
 export { bucketArn, isS3BucketOrObjectArn } from './s3.js'
-export { equalsIgnoreCase, splitSlice } from './strings.js'
+export { equalsIgnoreCase, normalizeCaseInsensitive, splitSlice } from './strings.js'

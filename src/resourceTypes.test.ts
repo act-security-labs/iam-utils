@@ -283,6 +283,17 @@ const resourceStringMatchesResourcePatternTests: {
 ]
 
 describe('resourceStringMatchesResourcePattern', () => {
+  it('matches supplementary case variants in literal resource type patterns', () => {
+    //Given resource and type-pattern literals containing a supplementary case pair
+    const resource = 'arn:aws:example:us-east-1:123456789012:𐐀/item'
+    const pattern = 'arn:aws:example:us-east-1:123456789012:𐐨/${Name}'
+
+    //When checking compatibility
+    const matches = resourceStringMatchesResourceTypePattern(resource, pattern)
+
+    //Then each supplementary character is compared as a single code point
+    expect(matches).toBe(true)
+  })
   for (const testCase of resourceStringMatchesResourcePatternTests) {
     describe(`Pattern: ${testCase.pattern}`, () => {
       for (const [arnFormat, expectedResult] of Object.entries(testCase.matches)) {

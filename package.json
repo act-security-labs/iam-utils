@@ -9,7 +9,8 @@
     }
   },
   "files": [
-    "dist/**/*"
+    "dist/**/*",
+    "UNICODE-LICENSE.txt"
   ],
   "types": "dist/cjs/index.d.ts",
   "keywords": [

@@ -1,4 +1,5 @@
 import { splitArnParts } from './arn.js'
+import { equalsIgnoreCase } from './strings.js'
 
 /** A character matcher used by the resource pattern compatibility automaton. */
 type CharacterMatcher = 'any' | 'nonSeparator' | { char: string }
@@ -175,11 +176,7 @@ function resourceComponentMatchesResourceTypeComponent(
   }
 
   if (resourceComponent === '' || resourceTypeComponent === '') {
-    return (
-      resourceComponent.localeCompare(resourceTypeComponent, undefined, {
-        sensitivity: 'accent'
-      }) === 0
-    )
+    return equalsIgnoreCase(resourceComponent, resourceTypeComponent)
   }
 
   return patternsHaveIntersection(
@@ -324,8 +321,10 @@ function tokenizeResourceTypePattern(pattern: string): ResourceTypeToken[] {
       }
     }
 
-    tokens.push({ type: 'literal', value: pattern[i] })
-    i++
+    const codePoint = pattern.codePointAt(i)!
+    const character = String.fromCodePoint(codePoint)
+    tokens.push({ type: 'literal', value: character })
+    i += character.length
   }
   return tokens
 }
@@ -354,7 +353,7 @@ function characterMatchersIntersect(first: CharacterMatcher, second: CharacterMa
     return typeof first === 'object' && !isResourceComponentSeparator(first.char)
   }
 
-  return first.char.localeCompare(second.char, undefined, { sensitivity: 'accent' }) === 0
+  return equalsIgnoreCase(first.char, second.char)
 }
 
 /**
