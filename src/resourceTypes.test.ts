@@ -467,6 +467,91 @@ const mostSpecificMatchingResourceTypePatternsTests: {
   }
 ]
 
+describe('regionless Bedrock foundation model resource types', () => {
+  const pattern = 'arn:${Partition}:bedrock:${Region}::foundation-model/${ResourceId}'
+
+  it.each([
+    'arn:aws:bedrock:::foundation-model/example.model-v1:0',
+    'arn:aws-cn:bedrock:::foundation-model/example.model-v1:0',
+    'arn:aws:bedrock:us-east-1::foundation-model/example.model-v1:0',
+    'arn:aws:bedrock:::foundation-model/*',
+    'arn:aws:bedrock:::foundation-model/?',
+    'arn:aws:bedrock:::foundation-model/model*',
+    'arn:aws:bedrock:::foundation-model/model?',
+    'arn:*:bedrock:::foundation-model/example',
+    'arn:aws:bedrock:::foundation-model/model/child'
+  ])('matches the catalog pattern for %s', (resource) => {
+    //Given a regional or regionless foundation model resource
+    //When matching against its catalog ARN pattern
+    const matches = resourceStringMatchesResourceTypePattern(resource, pattern)
+
+    //Then the type is compatible
+    expect(matches).toBe(true)
+  })
+
+  it.each([
+    'arn:aws:bedrock:::foundation-model/',
+    'arn:aws:bedrock::123456789012:foundation-model/example',
+    'arn:aws:bedrock:::inference-profile/example'
+  ])('does not match an unrelated or incomplete ARN %s', (resource) => {
+    //Given an unrelated or incomplete resource
+    //When matching the catalog foundation model pattern
+    const matches = resourceStringMatchesResourceTypePattern(resource, pattern)
+
+    //Then the type is incompatible
+    expect(matches).toBe(false)
+  })
+
+  it('selects the foundation model pattern among candidate resource types', () => {
+    //Given a global model and a separate guardrail catalog pattern
+    const resource = 'arn:aws:bedrock:::foundation-model/example.model-v1:0'
+    const guardrailPattern = 'arn:${Partition}:bedrock:${Region}:${Account}:guardrail/${Id}'
+
+    //When selecting matching resource types
+    const matches = mostSpecificMatchingResourceTypePatterns(resource, [pattern, guardrailPattern])
+
+    //Then only the foundation model pattern matches
+    expect(matches).toEqual([pattern])
+  })
+
+  it('does not relax the region requirement for account-scoped model patterns', () => {
+    //Given an account-scoped model pattern and a regionless resource
+    const resource = 'arn:aws:bedrock::123456789012:foundation-model/example'
+    const accountPattern =
+      'arn:${Partition}:bedrock:${Region}:${Account}:foundation-model/${ResourceId}'
+
+    //When matching the resource against the account-scoped pattern
+    const matches = resourceStringMatchesResourceTypePattern(resource, accountPattern)
+
+    //Then the missing region remains incompatible
+    expect(matches).toBe(false)
+  })
+
+  it('does not relax the region requirement for other Bedrock resource types', () => {
+    //Given a regionless Bedrock custom model ARN
+    const resource = 'arn:aws:bedrock:::custom-model/example'
+    const customPattern = 'arn:${Partition}:bedrock:${Region}::custom-model/${ResourceId}'
+
+    //When matching its catalog pattern
+    const matches = resourceStringMatchesResourceTypePattern(resource, customPattern)
+
+    //Then the normal region requirement applies
+    expect(matches).toBe(false)
+  })
+
+  it('does not allow an empty region for unrelated catalog patterns', () => {
+    //Given another service's regional resource type
+    const resource = 'arn:aws:lambda::123456789012:function:example'
+    const regionalPattern = 'arn:${Partition}:lambda:${Region}:${Account}:function:${FunctionName}'
+
+    //When matching an ARN without a region
+    const matches = resourceStringMatchesResourceTypePattern(resource, regionalPattern)
+
+    //Then the regional requirement remains enforced
+    expect(matches).toBe(false)
+  })
+})
+
 describe('mostSpecificMatchingResourceTypePatterns', () => {
   for (const testCase of mostSpecificMatchingResourceTypePatternsTests) {
     it(testCase.name, () => {

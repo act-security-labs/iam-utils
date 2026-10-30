@@ -46,7 +46,8 @@ type ResourceTypeToken =
  * This is a compatibility check: it returns true when there is at least one
  * concrete ARN that could satisfy both the resource string and the resource
  * type pattern. Resource type variables may span resource-component separators
- * such as `:` and `/`.
+ * such as `:` and `/`. The Bedrock foundation-model catalog pattern also matches
+ * regionless model ARNs used by global inference profiles.
  *
  * @param resourceString - A concrete resource ARN or wildcard (`"*"`)
  * @param resourcePattern - An ARN pattern from iam-data (e.g. `arn:${Partition}:s3:::${BucketName}/${ObjectName}`)
@@ -57,6 +58,13 @@ export function resourceStringMatchesResourceTypePattern(
   resourcePattern: string
 ): boolean {
   if (resourceString === '*') {
+    return true
+  }
+
+  if (
+    resourcePattern === 'arn:${Partition}:bedrock:${Region}::foundation-model/${ResourceId}' &&
+    /^arn:[^:/?*]+:bedrock:::foundation-model\/[\s\S]+$/.test(resourceString)
+  ) {
     return true
   }
 
@@ -73,7 +81,17 @@ export function resourceStringMatchesResourceTypePattern(
     return false
   }
 
-  if (!resourceComponentMatchesResourceTypeComponent(resourceParts.region, patternParts.region)) {
+  // Global Bedrock foundation models use the catalog's regional resource type.
+  const isGlobalFoundationModelPattern =
+    resourceParts.region === '' &&
+    patternParts.service === 'bedrock' &&
+    patternParts.region === '${Region}' &&
+    patternParts.accountId === '' &&
+    patternParts.resource === 'foundation-model/${ResourceId}'
+  if (
+    !isGlobalFoundationModelPattern &&
+    !resourceComponentMatchesResourceTypeComponent(resourceParts.region, patternParts.region)
+  ) {
     return false
   }
 
