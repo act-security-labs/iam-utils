@@ -1,3 +1,10 @@
+## [0.1.93](https://github.com/act-security-labs/iam-utils/compare/v0.1.92...v0.1.93) (2026-10-30)
+
+
+### Bug Fixes
+
+* match global Bedrock foundation models ([bb7a8f7](https://github.com/act-security-labs/iam-utils/commit/bb7a8f746758262eebaf2e288146ad0409b17b30))
+
 ## [0.1.92](https://github.com/act-security-labs/iam-utils/compare/v0.1.91...v0.1.92) (2026-10-29)
 
 
