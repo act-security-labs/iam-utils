@@ -1,4 +1,5 @@
 export { actionMatchesPattern } from './actions.js'
+export { isAwsFoundationModelArn, type AwsFoundationModelArnOptions } from './bedrock.js'
 export { getResourceSegments, splitArnParts, type ArnParts } from './arn.js'
 export {
   convertAssumedRoleArnToRoleArn,

@@ -1,4 +1,5 @@
 import { splitArnParts } from './arn.js'
+import { isAwsFoundationModelArn } from './bedrock.js'
 import { equalsIgnoreCase } from './strings.js'
 
 /** A character matcher used by the resource pattern compatibility automaton. */
@@ -61,9 +62,11 @@ export function resourceStringMatchesResourceTypePattern(
     return true
   }
 
+  // Common concrete-partition model patterns can bypass the general automaton.
   if (
     resourcePattern === 'arn:${Partition}:bedrock:${Region}::foundation-model/${ResourceId}' &&
-    /^arn:[^:/?*]+:bedrock:::foundation-model\/[\s\S]+$/.test(resourceString)
+    resourceString.includes(':::foundation-model/') &&
+    isAwsFoundationModelArn(resourceString, { allowResourceWildcards: true })
   ) {
     return true
   }
