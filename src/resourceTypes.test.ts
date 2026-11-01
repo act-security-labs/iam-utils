@@ -479,7 +479,9 @@ describe('regionless Bedrock foundation model resource types', () => {
     'arn:aws:bedrock:::foundation-model/model*',
     'arn:aws:bedrock:::foundation-model/model?',
     'arn:*:bedrock:::foundation-model/example',
-    'arn:aws:bedrock:::foundation-model/model/child'
+    'arn:aws:bedrock:::foundation-model/model/child',
+    'arn:aws:bedrock:::foundation-model/${Model}',
+    'arn:aws:bedrock:::foundation-model/example::nested'
   ])('matches the catalog pattern for %s', (resource) => {
     //Given a regional or regionless foundation model resource
     //When matching against its catalog ARN pattern
