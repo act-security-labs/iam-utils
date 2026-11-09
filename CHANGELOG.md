@@ -1,3 +1,11 @@
+## [0.1.98](https://github.com/act-security-labs/iam-utils/compare/v0.1.97...v0.1.98) (2026-11-09)
+
+
+### Bug Fixes
+
+* pin retry-enabled dependency update action ([fdf307f](https://github.com/act-security-labs/iam-utils/commit/fdf307f445336a097c89a8ce5bc84680b2b3e92b))
+* stagger dependency update schedule ([6596167](https://github.com/act-security-labs/iam-utils/commit/659616727716c2bbdee2b090b34440563f09fea5))
+
 ## [0.1.97](https://github.com/act-security-labs/iam-utils/compare/v0.1.96...v0.1.97) (2026-11-07)
 
 ## [0.1.96](https://github.com/act-security-labs/iam-utils/compare/v0.1.95...v0.1.96) (2026-11-01)
