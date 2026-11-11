@@ -1,3 +1,10 @@
+## [0.1.99](https://github.com/act-security-labs/iam-utils/compare/v0.1.98...v0.1.99) (2026-11-11)
+
+
+### Features
+
+* add CloudFront OAI ARN utilities ([a840607](https://github.com/act-security-labs/iam-utils/commit/a8406072722bda9b0de27a68fb79e944cf13f642))
+
 ## [0.1.98](https://github.com/act-security-labs/iam-utils/compare/v0.1.97...v0.1.98) (2026-11-09)
 
 
