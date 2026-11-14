@@ -1,6 +1,6 @@
 {
   "name": "@actsecurity/iam-utils",
-  "version": "0.1.99",
+  "version": "0.1.100",
   "description": "Various utilities for working with AWS IAM information",
   "exports": {
     ".": {
