@@ -279,6 +279,38 @@ const resourceStringMatchesResourcePatternTests: {
       'arn:${Partition}:s3:::${BucketName}': false,
       'arn:${Partition}:s3:::${BucketName}/${ObjectName}': false
     }
+  },
+  // An object key with separators matches the object type, but a lone variable does not span them.
+  {
+    pattern: 'arn:aws:s3:::my-bucket/a:b/c.txt',
+    matches: {
+      'arn:${Partition}:s3:::${BucketName}/${ObjectName}': true,
+      'arn:${Partition}:s3:::${BucketName}': false
+    }
+  },
+  // An empty variable component is not matched by a type that expects a value there.
+  {
+    pattern: 'arn:aws:kms:us-east-1:123456789012:key/',
+    matches: {
+      'arn:${Partition}:kms:${Region}:${Account}:key/${KeyId}': false,
+      'arn:${Partition}:kms:${Region}:${Account}:alias/${AliasName}': false
+    }
+  },
+  // Literal text in the ARN is compared without regard to case.
+  {
+    pattern: 'ARN:AWS:KMS:US-EAST-1:123456789012:KEY/1234abcd',
+    matches: {
+      'arn:${Partition}:kms:${Region}:${Account}:key/${KeyId}': true,
+      'arn:${Partition}:kms:${Region}:${Account}:alias/${AliasName}': false
+    }
+  },
+  // A near-miss access point object ARN does not match the object type.
+  {
+    pattern: 'arn:aws:s3:us-east-1:123456789012:accesspoint/example-ap/objects/a.txt',
+    matches: {
+      'arn:${Partition}:s3:${Region}:${Account}:accesspoint/${AccessPointName}/object/${ObjectName}': false,
+      'arn:${Partition}:s3:::${BucketName}/${ObjectName}': false
+    }
   }
 ]
 

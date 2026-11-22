@@ -211,6 +211,7 @@ function resourceComponentMatchesResourceTypeComponent(
   )
 }
 
+const maxResourceTypePatternAutomatons = 10_000
 const resourceTypePatternAutomatons = new Map<string, PatternAutomaton>()
 
 /**
@@ -223,6 +224,9 @@ function cachedResourceTypePatternAutomaton(resourceTypePattern: string): Patter
   let automaton = resourceTypePatternAutomatons.get(resourceTypePattern)
   if (!automaton) {
     automaton = createResourceTypePatternAutomaton(resourceTypePattern)
+    if (resourceTypePatternAutomatons.size >= maxResourceTypePatternAutomatons) {
+      resourceTypePatternAutomatons.delete(resourceTypePatternAutomatons.keys().next().value!)
+    }
     resourceTypePatternAutomatons.set(resourceTypePattern, automaton)
   }
   return automaton
