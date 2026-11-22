@@ -200,10 +200,59 @@ function resourceComponentMatchesResourceTypeComponent(
     return equalsIgnoreCase(resourceComponent, resourceTypeComponent)
   }
 
+  const resourceTypeAutomaton = cachedResourceTypePatternAutomaton(resourceTypeComponent)
+  if (!resourceComponent.includes('*') && !resourceComponent.includes('?')) {
+    return automatonAccepts(resourceTypeAutomaton, resourceComponent)
+  }
+
   return patternsHaveIntersection(
     createResourceStringAutomaton(resourceComponent),
-    createResourceTypePatternAutomaton(resourceTypeComponent)
+    resourceTypeAutomaton
   )
+}
+
+const resourceTypePatternAutomatons = new Map<string, PatternAutomaton>()
+
+/**
+ * Get the automaton for a resource type component, creating it on first use.
+ *
+ * @param resourceTypePattern - The resource type component to convert
+ * @returns An automaton accepting concrete strings matched by the resource type component
+ */
+function cachedResourceTypePatternAutomaton(resourceTypePattern: string): PatternAutomaton {
+  let automaton = resourceTypePatternAutomatons.get(resourceTypePattern)
+  if (!automaton) {
+    automaton = createResourceTypePatternAutomaton(resourceTypePattern)
+    resourceTypePatternAutomatons.set(resourceTypePattern, automaton)
+  }
+  return automaton
+}
+
+/**
+ * Check whether a resource pattern automaton accepts a concrete string.
+ *
+ * @param automaton - The automaton to run, which must not have epsilon transitions
+ * @param value - The concrete string to check
+ * @returns Whether the automaton accepts the string
+ */
+function automatonAccepts(automaton: PatternAutomaton, value: string): boolean {
+  let states = new Set([0])
+  for (const char of value) {
+    const consumed: CharacterMatcher = { char }
+    const nextStates = new Set<number>()
+    for (const state of states) {
+      for (const { nextState, consumes } of automaton.transitions(state)) {
+        if (consumes && characterMatchersIntersect(consumes, consumed)) {
+          nextStates.add(nextState)
+        }
+      }
+    }
+    if (nextStates.size === 0) {
+      return false
+    }
+    states = nextStates
+  }
+  return states.has(automaton.acceptingState)
 }
 
 /**
