@@ -489,6 +489,31 @@ const mostSpecificMatchingResourceTypePatternsTests: {
     expected: ['arn:${Partition}:kms:${Region}:${Account}:key/${KeyId}']
   },
   {
+    name: 'keeps equally specific Lambda alias and version patterns over the function pattern',
+    resourceString: 'arn:aws:lambda:us-east-1:123456789012:function:synthetic-function:7',
+    resourcePatterns: [
+      'arn:${Partition}:lambda:${Region}:${Account}:function:${FunctionName}',
+      'arn:${Partition}:lambda:${Region}:${Account}:function:${FunctionName}:${Alias}',
+      'arn:${Partition}:lambda:${Region}:${Account}:function:${FunctionName}:${Version}'
+    ],
+    expected: [
+      'arn:${Partition}:lambda:${Region}:${Account}:function:${FunctionName}:${Alias}',
+      'arn:${Partition}:lambda:${Region}:${Account}:function:${FunctionName}:${Version}'
+    ]
+  },
+  {
+    name: 'keeps every matching type for a single-character wildcard resource',
+    resourceString: 'arn:aws:batch:us-east-1:123456789012:job-definition/synthetic-definition:?',
+    resourcePatterns: [
+      'arn:${Partition}:batch:${Region}:${Account}:job-definition/${JobDefinitionName}',
+      'arn:${Partition}:batch:${Region}:${Account}:job-definition/${JobDefinitionName}:${Revision}'
+    ],
+    expected: [
+      'arn:${Partition}:batch:${Region}:${Account}:job-definition/${JobDefinitionName}',
+      'arn:${Partition}:batch:${Region}:${Account}:job-definition/${JobDefinitionName}:${Revision}'
+    ]
+  },
+  {
     name: 'returns an empty array when no patterns match',
     resourceString: 'arn:aws:kms:us-east-1:123456789012:key/1234abcd',
     resourcePatterns: [

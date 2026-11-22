@@ -120,14 +120,21 @@ export function resourceStringMatchesResourceTypePattern(
  *
  * @param resourceString - A concrete resource ARN or wildcard (`"*"`)
  * @param resourcePatterns - Candidate resource type ARN patterns
+ * @param matchesPattern - Decides whether the resource string matches one pattern. Defaults to
+ *   {@link resourceStringMatchesResourceTypePattern}; a caller that caches its answers passes the
+ *   cached function, which must return the same answer.
  * @returns Matching resource type patterns with less-specific parent patterns removed, in input order
  */
 export function mostSpecificMatchingResourceTypePatterns(
   resourceString: string,
-  resourcePatterns: string[]
+  resourcePatterns: string[],
+  matchesPattern: (
+    resourceString: string,
+    resourcePattern: string
+  ) => boolean = resourceStringMatchesResourceTypePattern
 ): string[] {
   const matchingPatterns = resourcePatterns.filter((pattern) =>
-    resourceStringMatchesResourceTypePattern(resourceString, pattern)
+    matchesPattern(resourceString, pattern)
   )
 
   if (resourceString.includes('*') || resourceString.includes('?')) {
