@@ -1,3 +1,16 @@
+## [0.1.103](https://github.com/act-security-labs/iam-utils/compare/v0.1.102...v0.1.103) (2026-11-23)
+
+
+### Features
+
+* let callers pass the matcher to mostSpecificMatchingResourceTypePatterns ([25a5965](https://github.com/act-security-labs/iam-utils/commit/25a5965db9984b45c95dd1f884640cf38dfa6f59))
+* simplify resource type matching and make caching configurable ([ecea1e9](https://github.com/act-security-labs/iam-utils/commit/ecea1e9968bf4f9fe85b80f680ca1ff5ef50914e))
+
+
+### Performance Improvements
+
+* match concrete resource components without the product automaton ([61d2e6e](https://github.com/act-security-labs/iam-utils/commit/61d2e6eb535524369e763dd5fdab7c9376edaf49))
+
 ## [0.1.102](https://github.com/act-security-labs/iam-utils/compare/v0.1.101...v0.1.102) (2026-11-23)
 
 
