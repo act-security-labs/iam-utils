@@ -1,6 +1,29 @@
 import { splitArnParts } from './arn.js'
 import { isAwsFoundationModelArn } from './bedrock.js'
 import { equalsIgnoreCase } from './strings.js'
+import {
+  ResourceTypeMatchCache,
+  type ResourceTypeMatchCacheProvider
+} from './resourceTypeMatchCache.js'
+
+let resourceTypeMatchCache: ResourceTypeMatchCacheProvider | undefined
+
+/**
+ * Enable a cache shared by this loaded copy of the module. With no argument, creates a fresh
+ * built-in cache holding up to 10,000 pairs. Re-enabling replaces the active cache.
+ *
+ * @param cache - Optional caller-provided cache; responsible for returning correct match results
+ */
+export function enableResourceTypeMatchCache(
+  cache: ResourceTypeMatchCacheProvider = new ResourceTypeMatchCache(10_000)
+): void {
+  resourceTypeMatchCache = cache
+}
+
+/** Disable the shared resource type match cache and discard its entries. */
+export function disableResourceTypeMatchCache(): void {
+  resourceTypeMatchCache = undefined
+}
 
 /** A character matcher used by the resource pattern compatibility automaton. */
 type CharacterMatcher = 'any' | 'nonSeparator' | { char: string }
@@ -58,6 +81,22 @@ export function resourceStringMatchesResourceTypePattern(
   resourceString: string,
   resourcePattern: string
 ): boolean {
+  if (!resourceTypeMatchCache) {
+    return computeResourceTypeMatch(resourceString, resourcePattern)
+  }
+  return resourceTypeMatchCache.getOrCompute(resourceString, resourcePattern, () =>
+    computeResourceTypeMatch(resourceString, resourcePattern)
+  )
+}
+
+/**
+ * Compute resource type compatibility without consulting the optional cache.
+ *
+ * @param resourceString - A resource ARN or wildcard pattern
+ * @param resourcePattern - A resource type ARN pattern
+ * @returns Whether the resource and type patterns are compatible
+ */
+function computeResourceTypeMatch(resourceString: string, resourcePattern: string): boolean {
   if (resourceString === '*') {
     return true
   }
@@ -120,21 +159,14 @@ export function resourceStringMatchesResourceTypePattern(
  *
  * @param resourceString - A concrete resource ARN or wildcard (`"*"`)
  * @param resourcePatterns - Candidate resource type ARN patterns
- * @param matchesPattern - Decides whether the resource string matches one pattern. Defaults to
- *   {@link resourceStringMatchesResourceTypePattern}; a caller that caches its answers passes the
- *   cached function, which must return the same answer.
  * @returns Matching resource type patterns with less-specific parent patterns removed, in input order
  */
 export function mostSpecificMatchingResourceTypePatterns(
   resourceString: string,
-  resourcePatterns: string[],
-  matchesPattern: (
-    resourceString: string,
-    resourcePattern: string
-  ) => boolean = resourceStringMatchesResourceTypePattern
+  resourcePatterns: string[]
 ): string[] {
   const matchingPatterns = resourcePatterns.filter((pattern) =>
-    matchesPattern(resourceString, pattern)
+    resourceStringMatchesResourceTypePattern(resourceString, pattern)
   )
 
   if (resourceString.includes('*') || resourceString.includes('?')) {
@@ -207,63 +239,67 @@ function resourceComponentMatchesResourceTypeComponent(
     return equalsIgnoreCase(resourceComponent, resourceTypeComponent)
   }
 
-  const resourceTypeAutomaton = cachedResourceTypePatternAutomaton(resourceTypeComponent)
   if (!resourceComponent.includes('*') && !resourceComponent.includes('?')) {
-    return automatonAccepts(resourceTypeAutomaton, resourceComponent)
+    return concreteComponentMatchesResourceType(resourceComponent, resourceTypeComponent)
   }
 
   return patternsHaveIntersection(
     createResourceStringAutomaton(resourceComponent),
-    resourceTypeAutomaton
+    createResourceTypePatternAutomaton(resourceTypeComponent)
   )
 }
 
-const maxResourceTypePatternAutomatons = 10_000
-const resourceTypePatternAutomatons = new Map<string, PatternAutomaton>()
-
 /**
- * Get the automaton for a resource type component, creating it on first use.
+ * Match a concrete component against a resource type component without a product automaton.
  *
- * @param resourceTypePattern - The resource type component to convert
- * @returns An automaton accepting concrete strings matched by the resource type component
+ * @param component - Concrete resource component
+ * @param pattern - Resource type component
+ * @returns Whether the component is accepted by the resource type pattern
  */
-function cachedResourceTypePatternAutomaton(resourceTypePattern: string): PatternAutomaton {
-  let automaton = resourceTypePatternAutomatons.get(resourceTypePattern)
-  if (!automaton) {
-    automaton = createResourceTypePatternAutomaton(resourceTypePattern)
-    if (resourceTypePatternAutomatons.size >= maxResourceTypePatternAutomatons) {
-      resourceTypePatternAutomatons.delete(resourceTypePatternAutomatons.keys().next().value!)
-    }
-    resourceTypePatternAutomatons.set(resourceTypePattern, automaton)
+function concreteComponentMatchesResourceType(component: string, pattern: string): boolean {
+  if (!pattern.includes('${')) {
+    const actual = [...component]
+    const expected = [...pattern]
+    return (
+      actual.length === expected.length &&
+      actual.every((char, index) => equalsIgnoreCase(expected[index], char))
+    )
   }
-  return automaton
-}
 
-/**
- * Check whether a resource pattern automaton accepts a concrete string.
- *
- * @param automaton - The automaton to run, which must not have epsilon transitions
- * @param value - The concrete string to check
- * @returns Whether the automaton accepts the string
- */
-function automatonAccepts(automaton: PatternAutomaton, value: string): boolean {
-  let states = new Set([0])
-  for (const char of value) {
-    const consumed: CharacterMatcher = { char }
-    const nextStates = new Set<number>()
-    for (const state of states) {
-      for (const { nextState, consumes } of automaton.transitions(state)) {
-        if (consumes && characterMatchersIntersect(consumes, consumed)) {
-          nextStates.add(nextState)
+  // Only a recognized variable occupying the whole component excludes separators.
+  if (/^\$\{[0-9a-zA-Z]+\}$/.test(pattern)) {
+    return !component.includes(':') && !component.includes('/')
+  }
+
+  const tokens = tokenizeResourceTypePattern(pattern)
+  let states = new Uint8Array(tokens.length + 1)
+  states[0] = 1
+  for (const char of component) {
+    const next = new Uint8Array(tokens.length + 1)
+    let matched = false
+    for (let i = 0; i < tokens.length; i++) {
+      if (!states[i]) {
+        continue
+      }
+      const token = tokens[i]
+      if (
+        token.type === 'variable'
+          ? characterMatchersIntersect(token.characterMatcher, { char })
+          : equalsIgnoreCase(token.value, char)
+      ) {
+        next[i + 1] = 1
+        if (token.type === 'variable') {
+          next[i] = 1
         }
+        matched = true
       }
     }
-    if (nextStates.size === 0) {
+    if (!matched) {
       return false
     }
-    states = nextStates
+    states = next
   }
-  return states.has(automaton.acceptingState)
+  return states[tokens.length] === 1
 }
 
 /**

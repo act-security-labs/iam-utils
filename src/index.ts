@@ -21,6 +21,12 @@ export {
 export { convertResourcePatternToRegex } from './resourcePatterns.js'
 export { resourceArnWithWildcardsToRegex } from './resources.js'
 export {
+  ResourceTypeMatchCache,
+  type ResourceTypeMatchCacheProvider
+} from './resourceTypeMatchCache.js'
+export {
+  disableResourceTypeMatchCache,
+  enableResourceTypeMatchCache,
   mostSpecificMatchingResourceTypePatterns,
   resourceStringMatchesResourceTypePattern
 } from './resourceTypes.js'
