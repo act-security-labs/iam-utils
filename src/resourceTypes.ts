@@ -1,6 +1,29 @@
 import { splitArnParts } from './arn.js'
 import { isAwsFoundationModelArn } from './bedrock.js'
 import { equalsIgnoreCase } from './strings.js'
+import {
+  ResourceTypeMatchCache,
+  type ResourceTypeMatchCacheProvider
+} from './resourceTypeMatchCache.js'
+
+let resourceTypeMatchCache: ResourceTypeMatchCacheProvider | undefined
+
+/**
+ * Enable a cache shared by this loaded copy of the module. With no argument, creates a fresh
+ * built-in cache holding up to 10,000 pairs. Re-enabling replaces the active cache.
+ *
+ * @param cache - Optional caller-provided cache; responsible for returning correct match results
+ */
+export function enableResourceTypeMatchCache(
+  cache: ResourceTypeMatchCacheProvider = new ResourceTypeMatchCache(10_000)
+): void {
+  resourceTypeMatchCache = cache
+}
+
+/** Disable the shared resource type match cache and discard its entries. */
+export function disableResourceTypeMatchCache(): void {
+  resourceTypeMatchCache = undefined
+}
 
 /** A character matcher used by the resource pattern compatibility automaton. */
 type CharacterMatcher = 'any' | 'nonSeparator' | { char: string }
@@ -58,6 +81,22 @@ export function resourceStringMatchesResourceTypePattern(
   resourceString: string,
   resourcePattern: string
 ): boolean {
+  if (!resourceTypeMatchCache) {
+    return computeResourceTypeMatch(resourceString, resourcePattern)
+  }
+  return resourceTypeMatchCache.getOrCompute(resourceString, resourcePattern, () =>
+    computeResourceTypeMatch(resourceString, resourcePattern)
+  )
+}
+
+/**
+ * Compute resource type compatibility without consulting the optional cache.
+ *
+ * @param resourceString - A resource ARN or wildcard pattern
+ * @param resourcePattern - A resource type ARN pattern
+ * @returns Whether the resource and type patterns are compatible
+ */
+function computeResourceTypeMatch(resourceString: string, resourcePattern: string): boolean {
   if (resourceString === '*') {
     return true
   }
@@ -200,10 +239,67 @@ function resourceComponentMatchesResourceTypeComponent(
     return equalsIgnoreCase(resourceComponent, resourceTypeComponent)
   }
 
+  if (!resourceComponent.includes('*') && !resourceComponent.includes('?')) {
+    return concreteComponentMatchesResourceType(resourceComponent, resourceTypeComponent)
+  }
+
   return patternsHaveIntersection(
     createResourceStringAutomaton(resourceComponent),
     createResourceTypePatternAutomaton(resourceTypeComponent)
   )
+}
+
+/**
+ * Match a concrete component against a resource type component without a product automaton.
+ *
+ * @param component - Concrete resource component
+ * @param pattern - Resource type component
+ * @returns Whether the component is accepted by the resource type pattern
+ */
+function concreteComponentMatchesResourceType(component: string, pattern: string): boolean {
+  if (!pattern.includes('${')) {
+    const actual = [...component]
+    const expected = [...pattern]
+    return (
+      actual.length === expected.length &&
+      actual.every((char, index) => equalsIgnoreCase(expected[index], char))
+    )
+  }
+
+  // Only a recognized variable occupying the whole component excludes separators.
+  if (/^\$\{[0-9a-zA-Z]+\}$/.test(pattern)) {
+    return !component.includes(':') && !component.includes('/')
+  }
+
+  const tokens = tokenizeResourceTypePattern(pattern)
+  let states = new Uint8Array(tokens.length + 1)
+  states[0] = 1
+  for (const char of component) {
+    const next = new Uint8Array(tokens.length + 1)
+    let matched = false
+    for (let i = 0; i < tokens.length; i++) {
+      if (!states[i]) {
+        continue
+      }
+      const token = tokens[i]
+      if (
+        token.type === 'variable'
+          ? characterMatchersIntersect(token.characterMatcher, { char })
+          : equalsIgnoreCase(token.value, char)
+      ) {
+        next[i + 1] = 1
+        if (token.type === 'variable') {
+          next[i] = 1
+        }
+        matched = true
+      }
+    }
+    if (!matched) {
+      return false
+    }
+    states = next
+  }
+  return states[tokens.length] === 1
 }
 
 /**

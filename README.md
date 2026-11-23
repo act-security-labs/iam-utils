@@ -4,6 +4,36 @@
 
 Various utility functions used in IAM packages
 
+## Optional resource type match cache
+
+Resource type matching does not cache by default. For workloads that repeatedly match the same
+resource ARN and resource type pattern, opt in once without changing individual match calls:
+
+```ts
+import {
+  enableResourceTypeMatchCache,
+  disableResourceTypeMatchCache,
+  ResourceTypeMatchCache
+} from '@actsecurity/iam-utils'
+
+enableResourceTypeMatchCache() // Built-in cache, up to 10,000 pairs.
+// Or use a different capacity, or any ResourceTypeMatchCacheProvider implementation:
+enableResourceTypeMatchCache(new ResourceTypeMatchCache(50_000))
+// Run analysis; existing resource type matching calls use the shared cache.
+disableResourceTypeMatchCache()
+```
+
+The built-in cache stores matching and non-matching results, bounded by the number of ARN/pattern
+pairs. When full, the oldest inserted entry is evicted (FIFO). Its constructor requires a positive
+safe integer capacity and throws a `RangeError` otherwise. Enabling again replaces the active cache;
+disabling detaches it. A custom `ResourceTypeMatchCacheProvider` must implement `getOrCompute` and
+is responsible for correct results and its own storage limits; its exceptions propagate to callers.
+
+The cache is shared across callers of the same loaded module copy, including direct matches and
+`mostSpecificMatchingResourceTypePatterns`. Concurrent operations share its lifecycle: disabling
+it affects them all. Separate module copies, including separately loaded CommonJS and ESM copies,
+have independent caches. Cached ARN and pattern strings remain in memory until eviction or disable.
+
 ## Case-insensitive comparisons
 
 `equalsIgnoreCase` compares code points without allocating lowercase copies. It uses Unicode

@@ -1,8 +1,146 @@
-import { describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
+import {
+  disableResourceTypeMatchCache,
+  enableResourceTypeMatchCache,
+  ResourceTypeMatchCache,
+  type ResourceTypeMatchCacheProvider
+} from './index.js'
 import {
   mostSpecificMatchingResourceTypePatterns,
   resourceStringMatchesResourceTypePattern
 } from './resourceTypes.js'
+
+describe('optional shared resource type match cache', () => {
+  afterEach(() => {
+    disableResourceTypeMatchCache()
+    vi.restoreAllMocks()
+  })
+
+  it('uses the cache only when enabled, including through the specificity helper', () => {
+    //Given a resource, matching type, and a spy on the real cache
+    const spy = vi.spyOn(ResourceTypeMatchCache.prototype, 'getOrCompute')
+    const resource = 'arn:aws:s3:::example'
+    const pattern = 'arn:${Partition}:s3:::${BucketName}'
+    disableResourceTypeMatchCache()
+
+    //When matching before, during, and after caching
+    expect(resourceStringMatchesResourceTypePattern(resource, pattern)).toBe(true)
+    expect(spy).not.toHaveBeenCalled()
+    enableResourceTypeMatchCache(new ResourceTypeMatchCache(2))
+    expect(mostSpecificMatchingResourceTypePatterns(resource, [pattern])).toEqual([pattern])
+    expect(resourceStringMatchesResourceTypePattern(resource, pattern)).toBe(true)
+    expect(spy).toHaveBeenCalledTimes(2)
+    disableResourceTypeMatchCache()
+    expect(resourceStringMatchesResourceTypePattern(resource, pattern)).toBe(true)
+
+    //Then disabled calls never access the cache
+    expect(spy).toHaveBeenCalledTimes(2)
+  })
+
+  it('replaces the cache on re-enable and after disable', () => {
+    //Given an enabled cache used by a match
+    const spy = vi.spyOn(ResourceTypeMatchCache.prototype, 'getOrCompute')
+    enableResourceTypeMatchCache()
+    resourceStringMatchesResourceTypePattern('*', 'pattern')
+
+    //When re-enabling, then disabling and enabling again
+    enableResourceTypeMatchCache(new ResourceTypeMatchCache(2))
+    resourceStringMatchesResourceTypePattern('*', 'pattern')
+    disableResourceTypeMatchCache()
+    enableResourceTypeMatchCache()
+    resourceStringMatchesResourceTypePattern('*', 'pattern')
+
+    //Then each enable created a distinct cache
+    expect(new Set(spy.mock.instances).size).toBe(3)
+  })
+
+  it('delegates to a caller-provided cache and propagates its errors', () => {
+    //Given a custom cache that stores the result of the supplied computation
+    const entries = new Map<string, boolean>()
+    let computations = 0
+    const custom: ResourceTypeMatchCacheProvider = {
+      getOrCompute(resource, pattern, compute) {
+        const key = JSON.stringify([resource, pattern])
+        const cached = entries.get(key)
+        if (cached !== undefined) {
+          return cached
+        }
+        computations++
+        const result = compute()
+        entries.set(key, result)
+        return result
+      }
+    }
+    enableResourceTypeMatchCache(custom)
+
+    //When a non-matching pair is evaluated twice
+    const resource = 'arn:aws:s3:::bucket'
+    const pattern = 'arn:aws:ec2:::instance/${Id}'
+    expect(resourceStringMatchesResourceTypePattern(resource, pattern)).toBe(false)
+    expect(resourceStringMatchesResourceTypePattern(resource, pattern)).toBe(false)
+    expect(computations).toBe(1)
+
+    //Then exceptions from a replacement custom cache propagate to the caller
+    enableResourceTypeMatchCache({
+      getOrCompute() {
+        throw new Error('custom cache failure')
+      }
+    })
+    expect(() => resourceStringMatchesResourceTypePattern(resource, pattern)).toThrow(
+      'custom cache failure'
+    )
+  })
+})
+
+describe('concrete resource component fast paths', () => {
+  it.each([
+    ['a:b/c', '${Bucket}/${Object}', true],
+    ['a:b/c', '${Bucket}', false],
+    ['/', '${Bucket}', false],
+    ['key/', 'key/${KeyId}', false],
+    ['KEY/abcd', 'key/${KeyId}', true],
+    ['accesspoint/example/objects/a', 'accesspoint/${Name}/object/${Object}', false],
+    ['x/y', '${invalid-name}', true],
+    ['x', '${}', true],
+    ['${open', '${open', true],
+    ['😀/Ω', '😀/${Name}', true],
+    ['ab', '${A}${B}', true],
+    ['a', '${A}${B}', false]
+  ])('matches %s against %s: %s', (resource, pattern, expected) => {
+    //Given a concrete resource and a resource type component
+    const resourceArn = `arn:aws:example:::${resource}`
+    const patternArn = `arn:\${Partition}:example:::${pattern}`
+
+    //When matching the ARN
+    const result = resourceStringMatchesResourceTypePattern(resourceArn, patternArn)
+
+    //Then the original component semantics hold
+    expect(result).toBe(expected)
+  })
+
+  it('retains equally specific and wildcard resource type matches', () => {
+    //Given overlapping types for a function and its versions
+    const patterns = [
+      'arn:${Partition}:lambda:${Region}:${Account}:function:${Name}',
+      'arn:${Partition}:lambda:${Region}:${Account}:function:${Name}:${Alias}',
+      'arn:${Partition}:lambda:${Region}:${Account}:function:${Name}:${Version}'
+    ]
+
+    //When matching a concrete or wildcard version
+    const concrete = mostSpecificMatchingResourceTypePatterns(
+      'arn:aws:lambda:us-east-1:123:function:f:7',
+      patterns
+    )
+    const wildcard = mostSpecificMatchingResourceTypePatterns(
+      'arn:aws:lambda:us-east-1:123:function:f:?',
+      patterns
+    )
+
+    //Then equally specific types remain, and wildcard inputs retain all matches
+    expect(concrete).toEqual(patterns.slice(1))
+    expect(wildcard).toEqual(patterns)
+  })
+})
 
 const resourceStringMatchesResourcePatternTests: {
   pattern: string
