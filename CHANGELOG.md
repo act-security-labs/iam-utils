@@ -1,3 +1,10 @@
+## [0.1.102](https://github.com/act-security-labs/iam-utils/compare/v0.1.101...v0.1.102) (2026-11-23)
+
+
+### Bug Fixes
+
+* run PR checks safely for fork contributions ([e8e71cc](https://github.com/act-security-labs/iam-utils/commit/e8e71cc8d83087ad471ace380da89fc047c54c43))
+
 ## [0.1.101](https://github.com/act-security-labs/iam-utils/compare/v0.1.100...v0.1.101) (2026-11-21)
 
 ## [0.1.100](https://github.com/act-security-labs/iam-utils/compare/v0.1.99...v0.1.100) (2026-11-14)
